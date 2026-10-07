@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#111827">
+<title>Gold Jewellery Calculator</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f3f4f6; color: #111827;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { margin: 6px 0 4px; font-size: 25px; }
+  .sub { color: #6b7280; margin: 0 0 16px; font-size: 14px; }
+  .card {
+    background: white; border-radius: 16px; padding: 18px; margin-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+  h2 { font-size: 17px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label { display:block; font-size: 13px; color:#4b5563; margin-bottom:6px; }
+  input, select {
+    width:100%; padding:12px; border:1px solid #d1d5db; border-radius:10px;
+    font-size:16px; background:#fff;
+  }
+  input:focus, select:focus { outline:2px solid #9ca3af; border-color:#6b7280; }
+  .full { grid-column:1/-1; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid #eee; }
+  .row:last-child { border-bottom:0; }
+  .value { font-weight:700; text-align:right; }
+  .total { font-size:20px; padding-top:14px; margin-top:5px; border-top:2px solid #111827; }
+  .loss { background:#fff7ed; border:1px solid #fed7aa; }
+  .loss .big { font-size:27px; font-weight:800; }
+  .good { background:#ecfdf5; border:1px solid #a7f3d0; }
+  .muted { color:#6b7280; font-size:12px; line-height:1.45; }
+  .toggle { display:flex; gap:8px; margin-bottom:12px; }
+  button {
+    border:0; border-radius:10px; padding:11px 14px; font-weight:700; cursor:pointer;
+    background:#111827; color:white;
+  }
+  button.secondary { background:#e5e7eb; color:#111827; }
+  .actions { display:flex; gap:8px; margin-top:14px; }
+  @media (max-width:520px) { .grid { grid-template-columns:1fr; } .full { grid-column:auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💰 Gold Jewellery Calculator</h1>
+  <p class="sub">Calculate gold value, making charges, GST and your immediate resale loss.</p>
+
+  <div class="card">
+    <h2>1. Jewellery details</h2>
+    <div class="grid">
+      <div>
+        <label>Gross weight (g)</label>
+        <input id="gross" type="number" step="0.001" value="1.552" inputmode="decimal">
+      </div>
+      <div>
+        <label>Stone / non-gold weight (g)</label>
+        <input id="stone" type="number" step="0.001" value="0.120" inputmode="decimal">
+      </div>
+      <div>
+        <label>Gold rate (₹ / g)</label>
+        <input id="rate" type="number" step="0.01" value="13500" inputmode="decimal">
+      </div>
+      <div>
+        <label>Purity</label>
+        <select id="purity">
+          <option value="1">24K</option>
+          <option value="0.9167" selected>22K (916)</option>
+          <option value="0.75">18K</option>
+          <option value="0.585">14K</option>
+        </select>
+      </div>
+      <div class="full">
+        <label>Making charge method</label>
+        <div class="toggle">
+          <button type="button" id="pctBtn" onclick="setMethod('pct')">Percentage</button>
+          <button type="button" class="secondary" id="gramBtn" onclick="setMethod('gram')">₹ / gram</button>
+        </div>
+      </div>
+      <div>
+        <label id="makingLabel">Making charge (% of total weight value)</label>
+        <input id="making" type="number" step="0.01" value="17" inputmode="decimal">
+      </div>
+      <div>
+        <label>GST (%)</label>
+        <input id="gst" type="number" step="0.01" value="3" inputmode="decimal">
+      </div>
+      <div class="full">
+        <label>Extra to pay (Making Charges + GST)</label>
+        <input id="extra" type="text" value="₹0" readonly>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Purchase calculation</h2>
+    <div class="row"><span>Net gold weight</span><span class="value" id="net">—</span></div>
+    <div class="row"><span>Total weight</span><span class="value" id="totalWeight">—</span></div>
+    <div class="row"><span>Gold value</span><span class="value" id="goldValue">—</span></div>
+    <div class="row"><span>Making charges</span><span class="value" id="makingValue">—</span></div>
+    <div class="row"><span>Subtotal</span><span class="value" id="subtotal">—</span></div>
+    <div class="row"><span>GST</span><span class="value" id="gstValue">—</span></div>
+    <div class="row"><span>Extra to pay (Making + GST)</span><span class="value" id="extraValue">—</span></div>
+    <div class="row total"><span>Total amount you pay</span><span class="value" id="actualPaid">—</span></div>
+  </div>
+
+  <div class="card loss">
+    <h2>3. If you sell tomorrow</h2>
+    <div class="grid">
+      <div>
+        <label>Expected buyback rate (₹ / g)</label>
+        <input id="buyback" type="number" step="0.01" value="13500" inputmode="decimal">
+      </div>
+      <div>
+        <label>Buyback deduction (%)</label>
+        <input id="deduction" type="number" step="0.01" value="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="row"><span>Estimated resale value</span><span class="value" id="resale">—</span></div>
+    <div class="row"><span>Amount paid</span><span class="value" id="paid">—</span></div>
+    <div class="row"><span>Immediate loss</span><span class="value big" id="loss">—</span></div>
+    <div class="row"><span>Loss as % of amount paid</span><span class="value" id="lossPct">—</span></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Gold exchange (sell old gold)</h2>
+    <div class="grid">
+      <div>
+        <label>Old gold weight (g)</label>
+        <input id="oldWeight" type="number" step="0.001" value="0" inputmode="decimal">
+      </div>
+      <div>
+        <label>Old gold purity</label>
+        <select id="oldPurity">
+          <option value="1">24K</option>
+          <option value="0.9167" selected>22K (916)</option>
+          <option value="0.75">18K</option>
+          <option value="0.585">14K</option>
+        </select>
+      </div>
+      <div class="full">
+        <label>Old gold rate (₹ / g)</label>
+        <input id="oldRate" type="number" step="0.01" value="13500" inputmode="decimal">
+      </div>
+    </div>
+    <div class="row"><span>Old gold sell value</span><span class="value" id="oldGoldValue">—</span></div>
+    <div class="row"><span>Total amount for new jewellery</span><span class="value" id="newJewelleryTotal">—</span></div>
+    <div class="row total"><span>Extra amount to pay out of pocket</span><span class="value" id="outOfPocket">—</span></div>
+  </div>
+
+  <div class="card good">
+    <h2>5. Quick shop check</h2>
+    <div class="row"><span>Effective premium over gold value</span><span class="value" id="premium">—</span></div>
+    <div class="row"><span>Break-even gold rate</span><span class="value" id="breakeven">—</span></div>
+    <p class="muted">
+      Break-even rate is the gold buyback rate needed to recover the amount you paid,
+      assuming the same net gold weight and the entered buyback deduction.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Useful formula</h2>
+    <p class="muted">
+      Net gold weight = gross weight − stone/non-gold weight.<br>
+      Total weight = gross weight of the jewellery.<br>
+      Gold value = net gold weight × gold rate.<br>
+      Making charges are calculated on total weight value (or total weight when using ₹/g), not just the net gold weight.<br>
+      GST = GST% × (gold value + making charges).<br>
+      Extra to pay = making charges + GST; total amount you pay = gold value + making charges + GST.<br>
+      Old gold sell value = old gold weight × old gold purity × old gold rate.<br>
+      Extra amount to pay out of pocket = total amount you pay (new jewellery) − old gold sell value.
+    </p>
+    <div class="actions">
+      <button onclick="resetCalc()">Reset</button>
+      <button class="secondary" onclick="window.print()">Print</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let method = 'pct';
+
+const ids = ['gross','stone','rate','making','gst','buyback','deduction','oldWeight','oldRate'];
+ids.forEach(id => document.getElementById(id).addEventListener('input', calc));
+document.getElementById('purity').addEventListener('change', calc);
+document.getElementById('oldPurity').addEventListener('change', calc);
+
+function n(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(v) ? v : 0;
+}
+function money(x) {
+  return '₹' + Math.round(x).toLocaleString('en-IN');
+}
+function setMethod(m) {
+  method = m;
+  document.getElementById('pctBtn').className = m === 'pct' ? '' : 'secondary';
+  document.getElementById('gramBtn').className = m === 'gram' ? '' : 'secondary';
+  document.getElementById('makingLabel').textContent =
+    m === 'pct' ? 'Making charge (% of total weight value)' : 'Making charge (₹ / total g)';
+  calc();
+}
+function calc() {
+  const gross = n('gross');
+  const stone = n('stone');
+  const net = Math.max(0, gross - stone);
+  const rate = n('rate');
+  const gold = net * rate;
+
+  const grossValue = gross * rate;
+
+  let making;
+  if (method === 'pct') making = grossValue * n('making') / 100;
+  else making = gross * n('making');
+
+  const subtotal = gold + making;
+  const gst = subtotal * n('gst') / 100;
+  const calculated = subtotal + gst;
+
+  const extra = making + gst;
+  const paid = calculated;
+
+  const buybackRate = n('buyback');
+  const deduction = Math.max(0, n('deduction'));
+  const resale = net * buybackRate * (1 - deduction / 100);
+  const loss = paid - resale;
+  const lossPct = paid > 0 ? (loss / paid) * 100 : 0;
+  const premium = gold > 0 ? ((paid / gold) - 1) * 100 : 0;
+
+  const breakEven = net > 0 ? paid / (net * (1 - deduction / 100)) : 0;
+
+  const oldWeight = n('oldWeight');
+  const oldRate = n('oldRate');
+  const oldPurity = parseFloat(document.getElementById('oldPurity').value) || 0;
+  const oldGoldValue = oldWeight * oldPurity * oldRate;
+  const outOfPocket = paid - oldGoldValue;
+
+  document.getElementById('net').textContent = net.toFixed(3) + ' g';
+  document.getElementById('totalWeight').textContent = gross.toFixed(3) + ' g';
+  document.getElementById('goldValue').textContent = money(gold);
+  document.getElementById('makingValue').textContent = money(making);
+  document.getElementById('subtotal').textContent = money(subtotal);
+  document.getElementById('gstValue').textContent = money(gst);
+  document.getElementById('extra').value = money(extra);
+  document.getElementById('extraValue').textContent = money(extra);
+  document.getElementById('actualPaid').textContent = money(paid);
+  document.getElementById('resale').textContent = money(resale);
+  document.getElementById('paid').textContent = money(paid);
+  document.getElementById('loss').textContent = money(loss);
+  document.getElementById('lossPct').textContent = lossPct.toFixed(1) + '%';
+  document.getElementById('premium').textContent = premium.toFixed(1) + '%';
+  document.getElementById('breakeven').textContent = money(breakEven) + ' / g';
+  document.getElementById('oldGoldValue').textContent = money(oldGoldValue);
+  document.getElementById('newJewelleryTotal').textContent = money(paid);
+  document.getElementById('outOfPocket').textContent = money(outOfPocket);
+}
+function resetCalc() {
+  document.getElementById('gross').value = '1.552';
+  document.getElementById('stone').value = '0.120';
+  document.getElementById('rate').value = '13500';
+  document.getElementById('purity').value = '0.9167';
+  document.getElementById('making').value = '17';
+  document.getElementById('gst').value = '3';
+  document.getElementById('extra').value = '₹0';
+  document.getElementById('buyback').value = '13500';
+  document.getElementById('deduction').value = '0';
+  document.getElementById('oldWeight').value = '0';
+  document.getElementById('oldPurity').value = '0.9167';
+  document.getElementById('oldRate').value = '13500';
+  setMethod('pct');
+}
+calc();
+</script>
+</body>
+</html>
